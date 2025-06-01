@@ -24,18 +24,17 @@ Score outpost[2][2] = {
 	{ S(22, 6), S(36,12) }, // Knight
 	{ S(9, 2), S(15, 5) }  // Bishop
 };
+// RookOnFile[semiopen/open] contains bonuses for each rook when there is
+// no (friendly) pawn on the rook file.
+Score RookOnFile[] = { S(18, 7), S(44, 20) };
+
 Value passedFile = VALUE_ZERO;
 Value passedRank = VALUE_ZERO;
 Value passedBlocked = VALUE_ZERO;
 Value passedKU = VALUE_ZERO;
 Value passedKE = VALUE_ZERO;
 Score pawnConnected = SCORE_ZERO;
-Score pawnDoubled = SCORE_ZERO;
-Score pawnIsolated = SCORE_ZERO;
-Score pawnBackward = SCORE_ZERO;
 Score pawnProtection[PT_NB] = {};
-Score rookOpen = SCORE_ZERO;
-Score rookSemiOpen = SCORE_ZERO;
 Score scoreBishopPair = SCORE_ZERO;
 Score scoreBishopBad = SCORE_ZERO;
 
@@ -51,6 +50,13 @@ Score tempo = SCORE_ZERO;
 
 int phase = 0;
 int aPhase[PT_NB] = { 0,1,1,2,4,0 };
+
+// Connected pawn bonus by opposed, phalanx, #support and rank
+Score Connected[2][2][3][RANK_NB];
+
+constexpr Score Backward = S(9, 24);
+constexpr Score Doubled = S(11, 56);
+constexpr Score Isolated = S(5, 15);
 
 constexpr Score BonusOrg[PT_NB][RANK_NB][int(FILE_NB) / 2] = {
   { // Pawn
@@ -196,28 +202,9 @@ void InitEval() {
 		elo = options.eloMax;
 	elo -= options.eloMin;
 	int eloRange = options.eloMax - options.eloMin;
-	int eloMod = 600 - (600 * (elo-options.eloMin)) / eloRange;
+	int eloMod = 600 - (600 * (elo - options.eloMin)) / eloRange;
 	vector<int> split{};
 
-	SplitInt(options.mobility, split, ' ');
-	for (PieceType pt = KNIGHT; pt < KING; ++pt) {
-		mg = GetVal(split, (pt - 1) * 2);
-		eg = GetVal(split, (pt - 1) * 2 + 1);
-		mobility[pt] = S(mg, eg);
-	}
-
-	SplitInt(options.outFile, split, ' ');
-	for (PieceType pt = PAWN; pt < PT_NB; ++pt) {
-		mg = GetVal(split, pt * 2);
-		eg = GetVal(split, pt * 2 + 1);
-		outsideFile[pt] = S(mg, eg);
-	}
-	SplitInt(options.outRank, split, ' ');
-	for (PieceType pt = PAWN; pt < PT_NB; ++pt) {
-		mg = GetVal(split, pt * 2);
-		eg = GetVal(split, pt * 2 + 1);
-		outsideRank[pt] = S(mg, eg);
-	}
 	SplitInt(options.defense, split, ' ');
 	for (int pt = PAWN; pt < PT_NB; pt++) {
 		mg = GetVal(split, pt * 2);
@@ -228,7 +215,6 @@ void InitEval() {
 	kingShield1 = (Value)GetVal(split, 0);
 	kingShield2 = (Value)GetVal(split, 1);
 
-	SplitInt(options.material, split, ' ');
 	for (PieceType pt = PAWN; pt < KING; ++pt) {
 		mg = PieceValue[MG][pt] - eloMod;
 		eg = PieceValue[EG][pt];
@@ -255,46 +241,33 @@ void InitEval() {
 	mg = GetVal(split, 0);
 	eg = GetVal(split, 1);
 	pawnConnected = S(mg, eg);
-	mg = GetVal(split, 2);
-	eg = GetVal(split, 3);
-	pawnDoubled = S(mg, eg);
-	mg = GetVal(split, 4);
-	eg = GetVal(split, 5);
-	pawnIsolated = S(mg, eg);
-	mg = GetVal(split, 6);
-	eg = GetVal(split, 7);
-	pawnBackward = S(mg, eg);
-
-	SplitInt(options.rook, split, ' ');
-	mg = GetVal(split, 0);
-	eg = GetVal(split, 1);
-	rookOpen = S(mg, eg);
-	mg = GetVal(split, 2);
-	eg = GetVal(split, 3);
-	rookSemiOpen = S(mg, eg);
 
 	SplitInt(options.tempo, split, ' ');
 	mg = GetVal(split, 0);
 	eg = GetVal(split, 1);
-	tempo= S(mg, eg);
+	tempo = S(mg, eg);
 
 	for (PieceType pt = PAWN; pt < PT_NB; ++pt)
 		for (Rank r = RANK_1; r < RANK_NB; ++r)
 			for (File f = FILE_A; f < FILE_NB; ++f)
 			{
-				int fi = std::min(int(f),7-f);
+				int fi = std::min(int(f), 7 - f);
 				bonus[pt][r][f] = material[pt];
 				bonus[pt][r][f] += BonusOrg[pt][r][fi];
-				//bonus[pt][r][f] += outsideFile[pt] * OutsideFile(f);
-				/*if (pt == PAWN) {
-					bonus[pt][r][f] += outsideRank[pt] * (r - 4);
-				}
-				else
-				{
-					bonus[pt][r][f] += outsideRank[pt] * OutsideRank(r);
-				}*/
 				bonusMax[pt][r][f] = ValueMax(bonus[pt][r][f]);
 			}
+
+	static constexpr int Seed[RANK_NB] = { 0, 13, 24, 18, 65, 100, 175, 330 };
+	for (int opposed = 0; opposed <= 1; ++opposed)
+		for (int phalanx = 0; phalanx <= 1; ++phalanx)
+			for (int support = 0; support <= 2; ++support)
+				for (Rank r = RANK_2; r < RANK_8; ++r)
+				{
+					int v = 17 * support;
+					v += (Seed[r] + (phalanx ? (Seed[r + 1] - Seed[r]) / 2 : 0)) >> opposed;
+
+					Connected[opposed][phalanx][support][r] = S(v, v * (r - 2) / 4);
+				}
 }
 
 static Bitboard GetLeastValuablePiece(Bitboard attadef, Color bySide, Piece& piece) {
@@ -386,7 +359,7 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 	Color color = esUs.color;
 	Bitboard bbUs = pos.AllPieces(color);
 	Bitboard bbEn = pos.AllPieces(~color);
-	Bitboard bbAll = bbUs|bbEn;
+	Bitboard bbAll = bbUs | bbEn;
 	Bitboard bbPawnsUs = pos.piece_bb[MakePiece(color, PAWN)];
 	Bitboard bbPawnsEn = pos.piece_bb[MakePiece(~color, PAWN)];
 	Direction north = RelativeDir(color, NORTH);
@@ -398,7 +371,9 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 	const Bitboard bbSpan = Span(~color, bbAttack);
 	const Bitboard bbOutpostRanks = color ? Rank5BB | Rank4BB | Rank3BB : Rank4BB | Rank5BB | Rank6BB;
 	Bitboard bbOutpost = (~bbSpan) & bbOutpostRanks;
-	//PrintBitboard(bbOutpost);
+	Bitboard lowRanks = color ? Rank7BB | Rank6BB:Rank2BB | Rank3BB;
+	Bitboard bbBlocked = bbPawnsUs & (Shift(north, bbAll) | lowRanks);
+	Bitboard bbMobilityArea = ~(bbBlocked | pos.piece_bb[MakePiece(color,QUEEN)]| pos.piece_bb[MakePiece(color, KING)] | bbAttack);
 	for (PieceType pt = PAWN; pt < PT_NB; ++pt) {
 		Piece piece = MakePiece(color, pt);
 		Bitboard copy = pos.piece_bb[piece];
@@ -428,21 +403,27 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 				}
 				//structure pawns
 				Score structure = SCORE_ZERO;
-				if (bbPawnsUs & bbForwardFiles[color][sq])
-					structure += pawnDoubled;
 				if (bbPiece & bbConnected) {
-					structure += pawnConnected;
+					Bitboard bbSupported = Shift(south, bbPiece);
+					int opposed = bbForwardFiles[color][sq] & bbPawnsEn ? 1 : 0;
+					int phalanx = (Shift(EAST, bbPiece) | Shift(WEST, bbPiece)) & bbPawnsUs ? 1 : 0;
+					int supported = bool(bbPawnsUs & Shift(EAST,bbSupported))+ bool(bbPawnsUs & Shift(WEST, bbSupported));
+					structure += Connected[opposed][phalanx][supported][rank];
+					//structure += Connected[0][0][supported][rank];
+					//score += Connected[opposed][bool(phalanx)][popcount(supported)][relative_rank(Us, s)];
 				}
 				else {
 					Bitboard bb = bbPawnsUs & bbAdjacentFiles[file];
 					if (!bb)
-						structure += pawnIsolated;
+						structure -= Isolated;
 					else {
 						bb = Shift(north, bbDefense) & bbAdjacentFiles[file];
 						if (bb & bbPawnsUs && bb & bbPawnsEn)
-							structure += pawnBackward;
+							structure -= Backward;
 					}
 				}
+				if (bbPawnsUs & bbForwardFiles[color][sq])
+					structure -= Doubled;
 				scores[STRUCTURE][color] += structure;
 			}
 			else if (pt == KING) {
@@ -456,14 +437,12 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 				}
 			}
 			else {
-				scores[pt][color] += MobilityBonus[pt - KNIGHT][PopCount(attacks(pt, sq, bbAll) & ~bbAttack)];
+				scores[pt][color] += MobilityBonus[pt - KNIGHT][PopCount(attacks(pt, sq, bbAll) & bbMobilityArea)];
 				if (pt == ROOK) {
 					const Bitboard bbFile = 0x101010101010101ULL << file;
 					if (!(bbFile & bbPawnsUs)) {
-						if (!(bbFile & bbPawnsEn))
-							scores[pt][color] += rookOpen;
-						else
-							scores[pt][color] += rookSemiOpen;
+						scores[pt][color] += RookOnFile[!(bbFile & bbPawnsEn)];
+						//if (!(bbFile & bbPawnsEn))scores[pt][color] += rookOpen;elsescores[pt][color] += rookSemiOpen;
 					}
 				}
 				else  if ((pt == KNIGHT) || (pt == BISHOP)) {
@@ -471,7 +450,7 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 						scores[pt][color] += outpost[pt == BISHOP][bbDefense && bbPiece] * 2;
 					else {
 						Bitboard bb = bbOutpost & attacks(pt, sq, bbAll) & ~bbUs;
-						if(bb)
+						if (bb)
 							scores[pt][color] += outpost[pt == BISHOP][bbDefense && bb];
 					}
 				}

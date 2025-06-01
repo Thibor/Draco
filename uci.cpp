@@ -167,17 +167,11 @@ void UciCommand(string str) {
 		printf("option name LMR type spin default %d min %d max %d\n", options.lmr, options.lmr - delta, options.lmr + delta);
 		printf("option name aspiration type spin default %d min %d max %d\n", options.aspiration, options.aspiration - delta, options.aspiration + delta);
 		cout << "option name ponder type check default " << (options.ponder ? "true" : "false") << endl;
-		cout << "option name material type string default " << options.material << endl;
-		cout << "option name mobility type string default " << options.mobility << endl;
 		cout << "option name passed type string default " << options.passed << endl;
 		cout << "option name pawn type string default " << options.pawn << endl;
-		cout << "option name rook type string default " << options.rook << endl;
 		cout << "option name king type string default " << options.king << endl;
-		cout << "option name outpost type string default " << options.outpost << endl;
 		cout << "option name bishop type string default " << options.bishop << endl;
 		cout << "option name defense type string default " << options.defense << endl;
-		cout << "option name outFile type string default " << options.outFile << endl;
-		cout << "option name outRank type string default " << options.outRank << endl;
 		cout << "option name tempo type string default " << options.tempo << endl;
 		cout << "uciok" << endl;
 	}
@@ -316,24 +310,12 @@ void UciCommand(string str) {
 				options.aspiration = stoi(value);
 			else if (name == "tempo")
 				options.tempo = stoi(value);
-			else if (name == "material")
-				options.material = value;
-			else if (name == "mobility")
-				options.mobility = value;
-			else if (name == "outfile")
-				options.outFile = value;
-			else if (name == "outrank")
-				options.outRank = value;
 			else if (name == "passed")
 				options.passed = value;
 			else if (name == "pawn")
 				options.pawn = value;
-			else if (name == "rook")
-				options.rook = value;
 			else if (name == "king")
 				options.king = value;
-			else if (name == "outpost")
-				options.outpost = value;
 			else if (name == "bishop")
 				options.bishop = value;
 			else if (name == "defense")
