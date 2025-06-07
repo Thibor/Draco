@@ -107,14 +107,12 @@ static void ShowInfoPv() {
 		sd.bestScore < VALUE_MATED_IN ? "mate " + to_string((-VALUE_MATE - sd.bestScore) >> 1) :
 		"cp " + to_string(sd.bestScore);
 	string pv = ExtractPv();
-	//cout << "info string phase " << g_pos.phase << endl;
 	cout << "info time " << ms << " depth " << sd.depth << " multipv " << sd.multiPV << " score " << score << " nps " << nps << " nodes " << sd.nodes << " hashfull " << tt.Permill() << " pv " << pv << endl;
 }
 
 static void ShowBestMove() {
 	if (chronos.ponder || !chronos.post)
 		return;
-	//ShowInfoPv();
 	U64 proNode = sd.nodes ? ((sd.nodes - sd.nodesq) * 100) / sd.nodes : 0;
 	int proMove = sd.moveSet ? (sd.moveOk * 100) / sd.moveSet : 0;
 	cout << "info string quiesce " << proNode << '%' << " hash " << proMove << '%' << endl;
@@ -375,8 +373,6 @@ static Value Search(Position& pos, Stack* ss, Depth depth, Value alpha, Value be
 			if (pe.value < 0)++r;
 			if (nt == NONPV)++r;
 			if (m.IsQuiet())++r;
-			//if (pos.move50)++r; else if (r)--r;
-			//if (pos.move50)++r;
 			if (r && pos.InCheck())--r;
 			if (r && improving)--r;
 			r += reduction<nt>(improving, depth, n);
@@ -497,15 +493,8 @@ void SearchIterate() {
 			picker.best = sd.multiPV - 1;
 			picker.SetBest(sd.bestMove);
 		}
-
-		/*for (int i1 = 0; i1<picker.count; i1++)
-			for(int i2=i1+1;i2<picker.count;i2++)
-				if (picker.pList[i1].move == picker.pList[i2].move)
-					cout << "duplicate move " << picker.pList[i1].move.ToUci() << endl;*/
-
 		sd.multiPV++;
 		if ((sd.multiPV > options.multiPV) || (sd.multiPV > picker.count)) {
-			//for(int i=0;i<sd.multiPV;i++)cout << "move " << (i+1) << " " << picker.pList[i].move.ToUci() << endl;
 			sd.multiPV = 1;
 			if (++sd.depth > MAX_PLY)
 				break;

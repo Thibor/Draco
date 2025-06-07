@@ -544,10 +544,6 @@ Value Trace(Position& pos) {
 }
 
 Value ShowEval() {
-	//position.SetFen("1b1rr1k1/3q1pp1/8/NP1pPb1p/1B1PP1n1/PQR1P1P1/2n1B1nP/5RK1 w - - 0 1");
-		//position.SetFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-		//position.SetFen("4r1k1/2pp1pp1/2b2q1p/rp2p3/4P3/P1PPQN1P/5PP1/R4RK1 w - - 0 20");
-	//position.SetFen("3k4/5Q2/3Np1p1/1pPp4/6n1/P3PN2/5PPP/R3K2R b KQ - 0 25");
 	g_pos.SetFen("1k6/1pp1R1p1/4PN2/4b1P1/5p2/3q1n2/1P2R1PK/8 b - - 0 1");
 	return (Trace<TRACE>(g_pos));
 }
