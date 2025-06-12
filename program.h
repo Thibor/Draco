@@ -9,5 +9,6 @@
 #include "uci.h"
 #include "input.h"
 
-extern string engineName;
+#define NAME "Draco"
+
 void PrintSummary(uint64_t time, uint64_t nodes);
