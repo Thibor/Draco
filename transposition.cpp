@@ -1,4 +1,4 @@
-#include "CTranspositionTable.h"
+#include "transposition.h"
 
 CTranspositionTable tt;
 

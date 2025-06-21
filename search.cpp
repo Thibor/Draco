@@ -105,7 +105,7 @@ static void ShowInfoPv() {
 	U64 nps = ms ? (sd.nodes * 1000) / ms : 0;
 	string score = sd.bestScore > VALUE_MATE_IN ? "mate " + to_string((VALUE_MATE - sd.bestScore + 1) >> 1) :
 		sd.bestScore < VALUE_MATED_IN ? "mate " + to_string((-VALUE_MATE - sd.bestScore) >> 1) :
-		"cp " + to_string(sd.bestScore);
+		"cp " + to_string(ValueToCp(sd.bestScore));
 	string pv = ExtractPv();
 	cout << "info time " << ms << " depth " << sd.depth << " multipv " << sd.multiPV << " score " << score << " nps " << nps << " nodes " << sd.nodes << " hashfull " << tt.Permill() << " pv " << pv << endl;
 }
@@ -510,7 +510,7 @@ void SearchIterate() {
 				break;
 		if (abs(score) > VALUE_MATE_IN)
 			break;
-		if ((picker.count == 1) && (sd.depth > 8))
+		if ((picker.count == 1) && (sd.depth > 4))
 			break;
 	}
 	ShowBestMove();

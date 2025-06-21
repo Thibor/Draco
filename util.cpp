@@ -1,8 +1,8 @@
-#include "util.h"
+#include "program.h"
 
 using namespace std;
 
-std::string trim(const std::string& s)
+std::string Trim(const std::string& s)
 {
     if (s.empty())
         return s;
@@ -59,7 +59,7 @@ void SplitInt(const string& txt, vector<int>& vInt, char ch) {
 
 // Function to put thousands
 // separators in the given integer
-string thousandSeparator(uint64_t n)
+string ThousandSeparator(uint64_t n)
 {
     string ans = "";
 

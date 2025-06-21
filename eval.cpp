@@ -27,14 +27,9 @@ Score outpost[2][2] = {
 // RookOnFile[semiopen/open] contains bonuses for each rook when there is
 // no (friendly) pawn on the rook file.
 Score RookOnFile[] = { S(18, 7), S(44, 20) };
+Score BishopPawns = S(3, 8);
+Score LongDiagonalBishop = S(44, 0);
 
-Value passedFile = VALUE_ZERO;
-Value passedRank = VALUE_ZERO;
-Value passedBlocked = VALUE_ZERO;
-Value passedKU = VALUE_ZERO;
-Value passedKE = VALUE_ZERO;
-Score pawnConnected = SCORE_ZERO;
-Score pawnProtection[PT_NB] = {};
 Score scoreBishopPair = SCORE_ZERO;
 Score scoreBishopBad = SCORE_ZERO;
 
@@ -138,6 +133,16 @@ constexpr Score MobilityBonus[][32] = {
 	S(106,184), S(109,191), S(113,206), S(116,212) }
 };
 
+// PassedRank[Rank] contains a bonus according to the rank of a passed pawn
+constexpr Score PassedRank[RANK_NB] = {
+  S(0, 0), S(5, 18), S(12, 23), S(10, 31), S(57, 62), S(163, 167), S(271, 250)
+};
+
+// PassedFile[File] contains a bonus according to the file of a passed pawn
+constexpr Score PassedFile[FILE_NB] = {
+  S(-1,  7), S(0,  9), S(-9, -8), S(-30,-14),S(-30,-14), S(-9, -8), S(0,  9), S(-1,  7)
+};
+
 inline static Piece GetCapturedPiece(Move m) {
 	return g_pos.Board(m.To());
 }
@@ -160,10 +165,6 @@ static inline int OutsideRank(Rank rank) {
 	return abs(rank * 2 - 7) / 2 - 2;
 }
 
-static inline int PassedRank(Rank rank) {
-	return (rank - 1) * (rank - 1);
-}
-
 static inline int Centrality(Rank rank, File file) {
 	return 3 - abs(rank * 2 - 7) / 2 - abs(file * 2 - 7) / 2;
 }
@@ -172,9 +173,13 @@ static int Centrality(Square sq) {
 	return Centrality(RankOf(sq), FileOf(sq));
 }
 
-static int Distance(Square s1, Square s2) {
-	return max(abs(FileOf(s1) - FileOf(s2)), abs(RankOf(s1) - RankOf(s2))) - 4;
+static int Distance(Square sq1, Square sq2) {
+	return max(abs(FileOf(sq1) - FileOf(sq2)), abs(RankOf(sq1) - RankOf(sq2)));
 };
+
+static int KingDistance(Square sq1, Square sq2) {
+	return min(Distance(sq1,sq2),5);
+}
 
 static int Tropism(Square sq1, Square sq2)
 {
@@ -183,6 +188,10 @@ static int Tropism(Square sq1, Square sq2)
 
 static Value ValueMax(Score score) {
 	return max(Mg(score), Eg(score));
+}
+
+static bool MoreThanOne(Bitboard bb) {
+	return bb & (bb - 1);
 }
 
 static Value ScoreToValue(Score score) {
@@ -205,12 +214,6 @@ void InitEval() {
 	int eloMod = 600 - (600 * (elo - options.eloMin)) / eloRange;
 	vector<int> split{};
 
-	SplitInt(options.defense, split, ' ');
-	for (int pt = PAWN; pt < PT_NB; pt++) {
-		mg = GetVal(split, pt * 2);
-		eg = GetVal(split, pt * 2 + 1);
-		pawnProtection[pt] = S(mg, eg);
-	}
 	SplitInt(options.king, split, ' ');
 	kingShield1 = (Value)GetVal(split, 0);
 	kingShield2 = (Value)GetVal(split, 1);
@@ -229,18 +232,6 @@ void InitEval() {
 	mg = GetVal(split, 2);
 	eg = GetVal(split, 3);
 	scoreBishopBad = S(mg, eg);
-
-	SplitInt(options.passed, split, ' ');
-	passedFile = (Value)GetVal(split, 0);
-	passedRank = (Value)GetVal(split, 1);
-	passedBlocked = (Value)GetVal(split, 2);
-	passedKU = (Value)GetVal(split, 3);
-	passedKE = (Value)GetVal(split, 4);
-
-	SplitInt(options.pawn, split, ' ');
-	mg = GetVal(split, 0);
-	eg = GetVal(split, 1);
-	pawnConnected = S(mg, eg);
 
 	SplitInt(options.tempo, split, ' ');
 	mg = GetVal(split, 0);
@@ -364,16 +355,16 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 	Bitboard bbPawnsEn = pos.piece_bb[MakePiece(~color, PAWN)];
 	Direction north = RelativeDir(color, NORTH);
 	Direction south = RelativeDir(color, SOUTH);
-	const Bitboard bbDefense = PawnAttacks(color, bbPawnsUs);
-	const Bitboard bbAttack = PawnAttacks(~color, bbPawnsEn);
-	Bitboard bbConnected = bbDefense | Shift(south, bbDefense);
+	const Bitboard bbPawnsDefense = PawnAttacks(color, bbPawnsUs);
+	const Bitboard bbPawnsAttack = PawnAttacks(~color, bbPawnsEn);
+	Bitboard bbConnected = bbPawnsDefense | Shift(south, bbPawnsDefense);
 	bbConnected |= Shift(south, bbConnected);
-	const Bitboard bbSpan = Span(~color, bbAttack);
+	const Bitboard bbSpan = Span(~color, bbPawnsAttack);
 	const Bitboard bbOutpostRanks = color ? Rank5BB | Rank4BB | Rank3BB : Rank4BB | Rank5BB | Rank6BB;
 	Bitboard bbOutpost = (~bbSpan) & bbOutpostRanks;
 	Bitboard lowRanks = color ? Rank7BB | Rank6BB:Rank2BB | Rank3BB;
-	Bitboard bbBlocked = bbPawnsUs & (Shift(north, bbAll) | lowRanks);
-	Bitboard bbMobilityArea = ~(bbBlocked | pos.piece_bb[MakePiece(color,QUEEN)]| pos.piece_bb[MakePiece(color, KING)] | bbAttack);
+	Bitboard bbBlocked = bbPawnsUs & (Shift(south, bbAll) | lowRanks);
+	Bitboard bbMobilityArea = ~(bbBlocked | pos.piece_bb[MakePiece(color,QUEEN)]| pos.piece_bb[MakePiece(color, KING)] | bbPawnsAttack);
 	for (PieceType pt = PAWN; pt < PT_NB; ++pt) {
 		Piece piece = MakePiece(color, pt);
 		Bitboard copy = pos.piece_bb[piece];
@@ -385,21 +376,22 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 			const Rank r = RankOf(sq);
 			const Rank rank = RelativeRank(color, r);
 			const File file = FileOf(sq);
-			scores[pt][color] += bonus[pt][rank][file];
+			Score score = bonus[pt][rank][file];
 			const Bitboard bbPiece = 1ULL << sq;
-			if (bbDefense & bbPiece)
-				scores[pt][color] += pawnProtection[pt];
 			if (pt == PAWN) {
 				//passed pawns
 				if (!(bbPassedPawnMask[color][sq] & bbPawnsEn)) {
-					Value passed = passedFile * OutsideFile(file);
-					passed += passedRank * PassedRank(rank);
-					if (Shift(RelativeDir(color, NORTH), bbPiece) & bbEn)
-						passed += passedBlocked;
-					Square sq2 = Square(sq + (color == WHITE ? 8 : -8));
-					passed += passedKU * Distance(esUs.king, sq2);
-					passed += passedKE * Distance(esEn.king, sq2);
-					scores[PASSED][color] += S(passed >> 1, passed);
+					Score passed = PassedFile[file];
+					passed += PassedRank[rank];
+					if (rank > RANK_3)
+					{
+						int w = (rank - 2) * (rank - 2) + 2;
+						Square sq2 = sq + north;
+						passed += S(0, (KingDistance(esEn.king, sq2) * 5 - KingDistance(esUs.king, sq2) * 2) * w);
+						if (rank != RANK_7)
+							passed -= S(0, KingDistance(esUs.king, sq2 + north) * w);
+					}
+					scores[PASSED][color] += passed;
 				}
 				//structure pawns
 				Score structure = SCORE_ZERO;
@@ -409,15 +401,13 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 					int phalanx = (Shift(EAST, bbPiece) | Shift(WEST, bbPiece)) & bbPawnsUs ? 1 : 0;
 					int supported = bool(bbPawnsUs & Shift(EAST,bbSupported))+ bool(bbPawnsUs & Shift(WEST, bbSupported));
 					structure += Connected[opposed][phalanx][supported][rank];
-					//structure += Connected[0][0][supported][rank];
-					//score += Connected[opposed][bool(phalanx)][popcount(supported)][relative_rank(Us, s)];
 				}
 				else {
 					Bitboard bb = bbPawnsUs & bbAdjacentFiles[file];
 					if (!bb)
 						structure -= Isolated;
 					else {
-						bb = Shift(north, bbDefense) & bbAdjacentFiles[file];
+						bb = Shift(north, bbPawnsDefense) & bbAdjacentFiles[file];
 						if (bb & bbPawnsUs && bb & bbPawnsEn)
 							structure -= Backward;
 					}
@@ -437,24 +427,31 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 				}
 			}
 			else {
-				scores[pt][color] += MobilityBonus[pt - KNIGHT][PopCount(attacks(pt, sq, bbAll) & bbMobilityArea)];
+				Bitboard bbAttacks = attacks(pt, sq, bbAll);
+				score += MobilityBonus[pt - KNIGHT][PopCount(bbAttacks & bbMobilityArea)];
 				if (pt == ROOK) {
 					const Bitboard bbFile = 0x101010101010101ULL << file;
 					if (!(bbFile & bbPawnsUs)) {
-						scores[pt][color] += RookOnFile[!(bbFile & bbPawnsEn)];
-						//if (!(bbFile & bbPawnsEn))scores[pt][color] += rookOpen;elsescores[pt][color] += rookSemiOpen;
+						score += RookOnFile[!(bbFile & bbPawnsEn)];
 					}
 				}
 				else  if ((pt == KNIGHT) || (pt == BISHOP)) {
 					if (bbOutpost & bbPiece)
-						scores[pt][color] += outpost[pt == BISHOP][bbDefense && bbPiece] * 2;
+						score += outpost[pt == BISHOP][bbPawnsDefense && bbPiece] * 2;
 					else {
 						Bitboard bb = bbOutpost & attacks(pt, sq, bbAll) & ~bbUs;
 						if (bb)
-							scores[pt][color] += outpost[pt == BISHOP][bbDefense && bb];
+							score += outpost[pt == BISHOP][bbPawnsDefense && bb];
+					}
+					if (pt == BISHOP) {
+						Bitboard blocked = bbPawnsUs & Shift(south,bbAll);
+						score -= BishopPawns * PopCount(bbPawnsUs & (bbPiece && bbLight ? bbLight : bbDark)) * (1 + PopCount(blocked & CenterFiles));
+						if (MoreThanOne(bbAttacks & Center))
+							score += LongDiagonalBishop;
 					}
 				}
 			}
+			scores[pt][color] += score;
 		}
 	}
 	if (esUs.piece[BISHOP]) {

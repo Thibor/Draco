@@ -136,6 +136,10 @@ inline Value VDD(Score s) {
 	return Value(abs(mg - eg) >> 2);
 }
 
+static int ValueToCp(Value v) {
+	return (v * 100) / PawnValueEg;
+}
+
 #define ENABLE_BASE_OPERATORS_ON(T)                                \
 constexpr T operator+(T d1, T d2) { return T(int(d1) + int(d2)); } \
 constexpr T operator-(T d1, T d2) { return T(int(d1) - int(d2)); } \

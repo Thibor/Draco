@@ -34,7 +34,7 @@ static bool UciValues(vector<string> list, string command, string& value) {
 		else if (list[n] == command)
 			result = true;
 	}
-	value = trim(value);
+	value = Trim(value);
 	return result;
 }
 
@@ -62,9 +62,9 @@ static void ShowInfo(uint64_t time, uint64_t nodes) {
 		time = 1;
 	uint64_t nps = (nodes * 1000) / time;
 	printf("-----------------------------\n");
-	cout << "Time        : " << thousandSeparator(time) << endl;
-	cout << "Nodes       : " << thousandSeparator(nodes) << endl;
-	cout << "Nps         : " << thousandSeparator(nps) << endl;
+	cout << "Time        : " << ThousandSeparator(time) << endl;
+	cout << "Nodes       : " << ThousandSeparator(nodes) << endl;
+	cout << "Nps         : " << ThousandSeparator(nps) << endl;
 	printf("-----------------------------\n");
 }
 
@@ -82,7 +82,7 @@ static void UciPerft(int depth)
 		std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 		chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
 		time = duration.count();
-		cout << d << ".\t" << thousandSeparator(time) << "\t" << thousandSeparator(nodes) << endl;
+		cout << d << ".\t" << ThousandSeparator(time) << "\t" << ThousandSeparator(nodes) << endl;
 	}
 	ShowInfo(time, nodes);
 }
@@ -104,7 +104,7 @@ static void UciBench(int depth) {
 		std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 		chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
 		time = duration.count();
-		cout << d << ".\t" << thousandSeparator(time) << "\t" << thousandSeparator(nodes) << endl;
+		cout << d << ".\t" << ThousandSeparator(time) << "\t" << ThousandSeparator(nodes) << endl;
 	}
 	ShowInfo(time, nodes);
 }
@@ -146,7 +146,7 @@ static void UciStop() {
 
 //Supports all uci commands
 void UciCommand(string str) {
-	str = trim(str);
+	str = Trim(str);
 	string value;
 	vector<string> split{};
 	SplitString(str, split, ' ');
@@ -167,11 +167,8 @@ void UciCommand(string str) {
 		printf("option name LMR type spin default %d min %d max %d\n", options.lmr, options.lmr - delta, options.lmr + delta);
 		printf("option name aspiration type spin default %d min %d max %d\n", options.aspiration, options.aspiration - delta, options.aspiration + delta);
 		cout << "option name ponder type check default " << (options.ponder ? "true" : "false") << endl;
-		cout << "option name passed type string default " << options.passed << endl;
-		cout << "option name pawn type string default " << options.pawn << endl;
 		cout << "option name king type string default " << options.king << endl;
 		cout << "option name bishop type string default " << options.bishop << endl;
-		cout << "option name defense type string default " << options.defense << endl;
 		cout << "option name tempo type string default " << options.tempo << endl;
 		cout << "uciok" << endl;
 	}
@@ -196,7 +193,7 @@ void UciCommand(string str) {
 			else if (split[i] == "moves")
 				mark = 2;
 		}
-		fen = trim(fen);
+		fen = Trim(fen);
 		g_pos.SetFen(fen == "" ? DEFAULT_FEN : fen);
 		for (string uci : moves) {
 			CMoveList list = CMoveList(g_pos);
@@ -310,16 +307,10 @@ void UciCommand(string str) {
 				options.aspiration = stoi(value);
 			else if (name == "tempo")
 				options.tempo = stoi(value);
-			else if (name == "passed")
-				options.passed = value;
-			else if (name == "pawn")
-				options.pawn = value;
 			else if (name == "king")
 				options.king = value;
 			else if (name == "bishop")
 				options.bishop = value;
-			else if (name == "defense")
-				options.defense = value;
 		}
 	}
 	else if (command == "bench") {

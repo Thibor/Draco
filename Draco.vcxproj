@@ -121,7 +121,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="chronos.cpp" />
-    <ClCompile Include="CTranspositionTable.cpp" />
+    <ClCompile Include="transposition.cpp" />
     <ClCompile Include="eval.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="move.cpp" />
@@ -136,7 +136,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="chronos.h" />
-    <ClInclude Include="CTranspositionTable.h" />
+    <ClInclude Include="transposition.h" />
     <ClInclude Include="eval.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="move.h" />
@@ -147,7 +147,6 @@
     <ClInclude Include="tables.h" />
     <ClInclude Include="types.h" />
     <ClInclude Include="uci.h" />
-    <ClInclude Include="util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
