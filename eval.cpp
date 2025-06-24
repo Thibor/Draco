@@ -377,19 +377,23 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 			const Rank rank = RelativeRank(color, r);
 			const File file = FileOf(sq);
 			Score score = bonus[pt][rank][file];
+			//cout << SQSTR[sq]<< " score " << Mg(score) << endl;
 			const Bitboard bbPiece = 1ULL << sq;
 			if (pt == PAWN) {
 				//passed pawns
 				if (!(bbPassedPawnMask[color][sq] & bbPawnsEn)) {
 					Score passed = PassedFile[file];
 					passed += PassedRank[rank];
+					cout << Eg(passed) << endl;
 					if (rank > RANK_3)
 					{
 						int w = (rank - 2) * (rank - 2) + 2;
 						Square sq2 = sq + north;
 						passed += S(0, (KingDistance(esEn.king, sq2) * 5 - KingDistance(esUs.king, sq2) * 2) * w);
+						cout << Eg(passed) <<" "<< KingDistance(esEn.king, sq2)<< endl;
 						if (rank != RANK_7)
 							passed -= S(0, KingDistance(esUs.king, sq2 + north) * w);
+						cout << Eg(passed) << endl;
 					}
 					scores[PASSED][color] += passed;
 				}
@@ -429,25 +433,27 @@ static Score Eval(Position& pos, SEvalSide& esUs, SEvalSide& esEn) {
 			else {
 				Bitboard bbAttacks = attacks(pt, sq, bbAll);
 				score += MobilityBonus[pt - KNIGHT][PopCount(bbAttacks & bbMobilityArea)];
+				//cout << "mobility " << PopCount(bbAttacks) << endl;
 				if (pt == ROOK) {
+					//PrintBitboard(bbAttacks);
 					const Bitboard bbFile = 0x101010101010101ULL << file;
-					if (!(bbFile & bbPawnsUs)) {
-						score += RookOnFile[!(bbFile & bbPawnsEn)];
-					}
+					if (!(bbFile & bbPawnsUs))score += RookOnFile[!(bbFile & bbPawnsEn)];
 				}
 				else  if ((pt == KNIGHT) || (pt == BISHOP)) {
 					if (bbOutpost & bbPiece)
-						score += outpost[pt == BISHOP][bbPawnsDefense && bbPiece] * 2;
+						score += outpost[pt == BISHOP][bool(bbPawnsDefense & bbPiece)] * 2;
 					else {
 						Bitboard bb = bbOutpost & attacks(pt, sq, bbAll) & ~bbUs;
 						if (bb)
-							score += outpost[pt == BISHOP][bbPawnsDefense && bb];
+							score += outpost[pt == BISHOP][bool(bbPawnsDefense & bb)];
 					}
 					if (pt == BISHOP) {
 						Bitboard blocked = bbPawnsUs & Shift(south,bbAll);
-						score -= BishopPawns * PopCount(bbPawnsUs & (bbPiece && bbLight ? bbLight : bbDark)) * (1 + PopCount(blocked & CenterFiles));
-						if (MoreThanOne(bbAttacks & Center))
-							score += LongDiagonalBishop;
+						score -= BishopPawns * PopCount(bbPawnsUs & (bbPiece & bbLight ? bbLight : bbDark)) *(1 + PopCount(blocked & CenterFiles));
+						//PrintBitboard(bbPawnsUs & (bbPiece & bbLight ? bbLight : bbDark));
+						//cout<< PopCount(bbPawnsUs & (bbPiece & bbLight ? bbLight : bbDark))<<endl;
+						//cout << (bbPiece & bbLight ? "light " : "dark ")<<bbPiece <<" "<<sq<< endl;
+						if (MoreThanOne(bbAttacks & Center))score += LongDiagonalBishop;
 					}
 				}
 			}
@@ -494,6 +500,17 @@ static void PrintTerm(string name, int idx) {
 	std::cout << ShowScore(name) << ShowScore(sw) << " " << ShowScore(sb) << " " << ShowScore(sw - sb) << endl;
 }
 
+void PrintMoves(Position& pos) {
+	Picker picker;
+	pos.MoveList(pos.ColorUs(), picker.mList, picker.count);
+	picker.Fill();
+	std::cout << "moves:" << endl;
+	for (int n = 0; n < picker.count; n++) {
+		PickerE pe = picker.Pick(n);
+		cout << pe.move << " " << pe.value << " " << See(pe.move) << endl;
+	}
+}
+
 template<Tracing T>
 Value Trace(Position& pos) {
 	std::memset(scores, 0, sizeof(scores));
@@ -517,14 +534,6 @@ Value Trace(Position& pos) {
 		return VALUE_ZERO;
 	Value v = ScoreToValue(score + tempo);
 	if (T) {
-		Picker picker;
-		pos.MoveList(pos.ColorUs(), picker.mList, picker.count);
-		picker.Fill();
-		std::cout << "moves:" << endl;
-		for (int n = 0; n < picker.count; n++) {
-			PickerE pe = picker.Pick(n);
-			cout << pe.move << " " << pe.value << " " << See(pe.move) << endl;
-		}
 		pos.PrintBoard();
 		PrintTerm("Pawn", PAWN);
 		PrintTerm("Knight", KNIGHT);
@@ -541,7 +550,7 @@ Value Trace(Position& pos) {
 }
 
 Value ShowEval() {
-	g_pos.SetFen("1k6/1pp1R1p1/4PN2/4b1P1/5p2/3q1n2/1P2R1PK/8 b - - 0 1");
+	g_pos.SetFen("1k6/1pp3pR/4PN2/4b1P1/5p2/3q1n2/1P2R1PK/8 b - - 0 1");
 	return (Trace<TRACE>(g_pos));
 }
 

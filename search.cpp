@@ -500,7 +500,7 @@ void SearchIterate() {
 				break;
 		}
 		if (chronos.flags & FMOVETIME)
-			if (sd.Ms() > chronos.movetime / 2)
+			if (sd.Ms() > chronos.movetime / 4)
 				break;
 		if (chronos.flags & FDEPTH)
 			if (sd.depth > chronos.depth)

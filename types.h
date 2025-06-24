@@ -221,9 +221,8 @@ constexpr Piece operator~(Piece pc) {
 	return Piece(pc ^ 8); // Swap color of piece B_KNIGHT -> W_KNIGHT
 }
 
-
-const Bitboard bbLight = 0xaa55aa55aa55aa55ull;
-const Bitboard bbDark =  0x55aa55aa55aa55aaull;
+const Bitboard bbLight = 0x55aa55aa55aa55aaull;
+const Bitboard bbDark = 0xaa55aa55aa55aa55ull;
 
 constexpr Bitboard FileABB = 0x0101010101010101ULL;
 constexpr Bitboard FileBBB = FileABB << 1;
